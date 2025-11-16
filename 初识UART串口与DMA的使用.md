@@ -10,7 +10,7 @@ UART的全称是**`Universal Asynchronous Receiver/Transmitter`**是一种串行
 
 - `Universal`是**串行**的意思。串行通信是指利用一条传输线将数据一位位地顺序传送，区别于并行的8个数据位同时传输。
 
-<img src="./Snipaste_2025-11-16_15-49-16.png" alt="Snipaste_2025-11-16_15-49-16" style="zoom: 50%;" />
+<img src="./pictures/Snipaste_2025-11-16_15-49-16.png" alt="Snipaste_2025-11-16_15-49-16" style="zoom: 50%;" />
 
 - `Asynchronous`是**异步**的意思 ，在异步通讯中，**不使用时钟信号**进行数据同步，它们直接在数据信号中穿插一些同步用的信号位，或者把主体数据进行打包，以数据帧的格式传输数据。例如规定由起始位、数据位、奇偶校验位、停止位等。
   某些通讯中还需要双方约定数据的传输速率，以便更好地同步 。波特率(bps)是衡量数据传送速率的指标。     
@@ -27,7 +27,7 @@ UART的全称是**`Universal Asynchronous Receiver/Transmitter`**是一种串行
 
 ​                                                           				  $波特率 = \frac{系统时钟频率}{分频系数}$
 
-<img src="./a8fb5b4791aeabbd3f51fc81ffe83da8.png" alt="a8fb5b4791aeabbd3f51fc81ffe83da8" style="zoom: 50%;" />
+<img src="./pictures/a8fb5b4791aeabbd3f51fc81ffe83da8.png" alt="a8fb5b4791aeabbd3f51fc81ffe83da8" style="zoom: 50%;" />
 
 ​	==一定要记得根据你使用的东西更改相应波特率==，不然就全是乱码了，~~*不要问我怎么知道的*~~。
 
@@ -35,7 +35,7 @@ UART的全称是**`Universal Asynchronous Receiver/Transmitter`**是一种串行
 
 ​	我们用于传输信号的数据线在默认情况下处于高电平，为了让对方知道什么时候开始通信，UART采用拉低电平的方式标志起始位。在	发完8位数据后还带有奇偶校验位，停止位等，由此来完成一个通信过程。
 
-<img src="./33d2392caa4617451d48fe7b454e1d83.png" alt="33d2392caa4617451d48fe7b454e1d83" style="zoom:80%;" />
+<img src="./pictures/33d2392caa4617451d48fe7b454e1d83.png" alt="33d2392caa4617451d48fe7b454e1d83" style="zoom:80%;" />
 
 
 
@@ -47,7 +47,7 @@ UART的全称是**`Universal Asynchronous Receiver/Transmitter`**是一种串行
 
 *~~本来笔试题我是负责出这部分的题目的，后来因为题目太多我出的这部分的都被删了(ㄒoㄒ)~~*
 
-<img src="./16a5f1251ff9f87a522166d5771a3af9.png" alt="16a5f1251ff9f87a522166d5771a3af9" style="zoom: 20%;" />
+<img src="./pictures/16a5f1251ff9f87a522166d5771a3af9.png" alt="16a5f1251ff9f87a522166d5771a3af9" style="zoom: 20%;" />
 
 
 
@@ -59,13 +59,13 @@ UART的全称是**`Universal Asynchronous Receiver/Transmitter`**是一种串行
 
 不过这次我们要开的外设是UART这个外设
 
-<img src="./Snipaste_2025-11-16_17-54-32.png" alt="Snipaste_2025-11-16_17-54-32" style="zoom: 33%;" />
+<img src="./pictures/Snipaste_2025-11-16_17-54-32.png" alt="Snipaste_2025-11-16_17-54-32" style="zoom: 33%;" />
 
 注意这里的`TX`是**发送端**，`RX`是**接收端**，`TX`应该发送给别的外设的`RX`，所以说在接线的时候单片机与另一个的串口的`RX`与`TX`**==反接==**！**==反接==**！**==反接==**！
 
 以及共地用来使电平参考一致   	 **==共地==**！**==共地==**！**==共地==**！
 
-<img src="./641f6d5e7b1c9559762c037d3529e8b4.png" alt="641f6d5e7b1c9559762c037d3529e8b4" style="zoom:50%;" />
+<img src="./pictures/641f6d5e7b1c9559762c037d3529e8b4.png" alt="641f6d5e7b1c9559762c037d3529e8b4" style="zoom:50%;" />
 
 `GENERATE` `CODE`之后我们就可以开始编程了。
 
@@ -114,7 +114,7 @@ char message[] = "Hello World\n";
 /* USER CODE END PV */
 ```
 
-![Snipaste_2025-11-16_21-06-24](./Snipaste_2025-11-16_21-06-24.png)
+![Snipaste_2025-11-16_21-06-24](./pictures/Snipaste_2025-11-16_21-06-24.png)
 
 然后在while循环中将其以1s时间间隔发送
 
@@ -131,11 +131,11 @@ char message[] = "Hello World\n";
   /* USER CODE END 3 */
 ```
 
-![Snipaste_2025-11-16_21-07-37](./Snipaste_2025-11-16_21-07-37.png)
+![Snipaste_2025-11-16_21-07-37](./pictures/Snipaste_2025-11-16_21-07-37.png)
 
 在`VOFA`中选择对应的端口号打开就可以看见发送的数据了
 
-<img src="./Snipaste_2025-11-16_21-12-30.png" alt="Snipaste_2025-11-16_21-12-30" style="zoom: 33%;" />
+<img src="./pictures/Snipaste_2025-11-16_21-12-30.png" alt="Snipaste_2025-11-16_21-12-30" style="zoom: 33%;" />
 
 ##### 接收数据
 
@@ -182,7 +182,7 @@ uint8_t rx_buf;
 
 实现效果如下：
 
-<img src="./Snipaste_2025-11-16_21-36-01.png" alt="Snipaste_2025-11-16_21-36-01" style="zoom:33%;" />
+<img src="./pictures/Snipaste_2025-11-16_21-36-01.png" alt="Snipaste_2025-11-16_21-36-01" style="zoom:33%;" />
 
 #### 中断方式
 
@@ -194,7 +194,7 @@ uint8_t rx_buf;
 
 首先在cubemx中我们需要将中断开启
 
-<img src="./Snipaste_2025-11-16_22-09-41.png" alt="Snipaste_2025-11-16_22-09-41" style="zoom: 40%;" />
+<img src="./pictures/Snipaste_2025-11-16_22-09-41.png" alt="Snipaste_2025-11-16_22-09-41" style="zoom: 40%;" />
 
 重新`GENERATE CODE`应用修改就可以改写我们的代码了
 
