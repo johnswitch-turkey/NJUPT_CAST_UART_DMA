@@ -232,11 +232,26 @@ HAL_StatusTypeDef HAL_UART_Receive_IT(UART_HandleTypeDef *huart, uint8_t *pData,
 
 
 
+#### 空闲中断加+DMA方式
 
+在了解这个方式之前，我们有必要先知道一下什么是`DMA`
 
+`DMA`，全称`Direct Memory Access`，即直接存储器访问。
 
+`DMA`传输将数据从一个地址空间复制到另一个地址空间，提供在外设和存储器之间或者存储器和存储器之间的高速数据传输，**无须CPU干预**，节省了CPU的资源。
 
+<img src="./pictures/0876bb704d24496f80f82bea49d08896.png" alt="0876bb704d24496f80f82bea49d08896" style="zoom:75%;" />
 
+如果没有不通过DMA，CPU传输数据还要以内核作为中转站，例如将ADC采集的数据转移到SRAM中。
+
+而如果通过DMA的话，DMA控制器将获取到的外设数据存储到DMA通道中，然后通过DMA总线与DMA总线矩阵协调，将数据传输到SRAM中，期间不需内核参与。
+
+> 主要特征：
+>
+> 同一个DMA模块上，多个请求间的优先权可以通过软件编程设置（共有四级：很高、高、中等和低），优先权设置相等时由硬件决定（请求0优先于请求1，依此类推）；
+> 独立数据源和目标数据区的传输宽度（字节、半字、全字）；
+> 可编程的数据传输数目：最大为65535；
+> 对于大容量的STM32芯片有2个DMA控制器 两个DMA控制器，DMA1有7个通道，DMA2有5个通道.
 
 
 
@@ -263,6 +278,22 @@ HAL_StatusTypeDef HAL_UART_Receive_IT(UART_HandleTypeDef *huart, uint8_t *pData,
 
 
 **[通信方式的分类（串行通信和并行通信）-CSDN博客](https://blog.csdn.net/Rocher_22/article/details/116590629)
+
+
+
+
+
+
+
+**[【STM32】DMA超详细解析·入门级教程_dma教程-CSDN博客](https://blog.csdn.net/MANONGDKY/article/details/154383583?ops_request_misc=&request_id=&biz_id=102&utm_term=DMA入门&utm_medium=distribute.pc_search_result.none-task-blog-2~all~sobaiduweb~default-1-154383583.142^v102^pc_search_result_base2&spm=1018.2226.3001.4187)（这个里面对DMA讲的非常详细，一开始可能看不懂）
+
+
+
+
+
+
+
+
 
 [基于STM32HAL库的三种串口接收方式_stm32 hal 串口接收-CSDN博客](https://blog.csdn.net/qq_44758496/article/details/132206223)
 
