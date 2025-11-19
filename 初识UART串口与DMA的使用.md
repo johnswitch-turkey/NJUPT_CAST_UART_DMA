@@ -1,7 +1,5 @@
 # 初识**UART**串口与**DMA**的使用
 
-## UART
-
 > 我们主要用串口来进行单片机与单片机之间的通信，单片机与电脑之间的通信，单片机与外设之间的通信等等，那对于校初选来说，我们要做的应该就是 能让你的数据以一定格式显示在电脑上。后续对于打比赛来说应该是会用到UART调试，与上位机的通信，串口屏的使用等等。
 
 ### **UART的定义**
@@ -24,9 +22,9 @@ UART的全称是**`Universal Asynchronous Receiver/Transmitter`**是一种串行
 ​	1 Baud = 1 Symbol/s（每秒1个符号）。符号（Symbol） 常用来表示一个二进制位（bit）
 
 ​	在UART通信中波特率是核心参数，决定了传输的速度，波特率由硬件定时器生成，公式通常为：
-
-​                                                           				  $波特率 = \frac{系统时钟频率}{分频系数}$
-
+$$
+波特率 = \frac{系统时钟频率}{分频系数}
+$$
 <img src="./pictures/a8fb5b4791aeabbd3f51fc81ffe83da8.png" alt="a8fb5b4791aeabbd3f51fc81ffe83da8" style="zoom: 50%;" />
 
 ​	==一定要记得根据你使用的东西更改相应波特率==，不然就全是乱码了，~~*不要问我怎么知道的*~~。
@@ -192,13 +190,7 @@ uint8_t rx_buf;
 >
 > 缺点：虽然解决了轮询不断扫描寄存器状态的缺点，但CPU接收数据会触发中断，对于实时要求高的场所，不适用。
 
-首先在cubemx中我们需要将中断开启
-
-<img src="./pictures/Snipaste_2025-11-16_22-09-41.png" alt="Snipaste_2025-11-16_22-09-41" style="zoom: 40%;" />
-
-重新`GENERATE CODE`应用修改就可以改写我们的代码了
-
-其实改成中断的方式很简单，只需要在原来的语句后面加上`_IT`，再改一下参数就可以了。
+<img src="./pictures/d47f750cab8caa8e6f11dd34e78cd201.png" alt="d47f750cab8caa8e6f11dd34e78cd201" style="zoom:67%;" />
 
 ##### 发送数据
 
@@ -228,13 +220,63 @@ HAL_StatusTypeDef HAL_UART_Receive_IT(UART_HandleTypeDef *huart, uint8_t *pData,
 
 ```
 
+接下来看看怎么实现
 
+首先在cubemx中我们需要将中断开启
 
+<img src="./pictures/Snipaste_2025-11-16_22-09-41.png" alt="Snipaste_2025-11-16_22-09-41" style="zoom: 40%;" />
 
+重新`GENERATE CODE`应用修改就可以改写我们的代码了
 
-#### 空闲中断加+DMA方式
+其实改成中断的方式很简单，只需要在原来的语句后面加上`_IT`，再加一个中断回调函数就好了。
 
-在了解这个方式之前，我们有必要先知道一下什么是`DMA`
+我们先定义一个宏定义大小
+
+```C
+/* USER CODE BEGIN PD */
+#define DATA_LEN 255
+/* USER CODE END PD */
+```
+
+定义接收数组
+
+```C
+/* USER CODE BEGIN PV */
+uint8_t rxData[DATA_LEN];
+/* USER CODE END PV */
+```
+
+开启接收
+
+```C
+  /* USER CODE BEGIN 2 */
+	HAL_UARTEx_ReceiveToIdle_IT(&huart1,rxData,sizeof(rxData));
+  /* USER CODE END 2 */
+```
+
+重定义中断回调函数
+
+```C
+/* USER CODE BEGIN 4 */
+void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart,uint16_t Size){
+
+	if (huart ->Instance == USART1){
+		HAL_UART_Transmit(&huart1, rxData, sizeof(rxData),100);
+		
+		HAL_UARTEx_ReceiveToIdle_IT(&huart1,rxData,sizeof(rxData));
+		memset(rxData,0,sizeof(rxData));
+	}
+}
+/* USER CODE END 4 */
+```
+
+我们就可以实现以下效果，和上面的一样
+
+<img src="./pictures/Snipaste_2025-11-19_20-25-49.png" alt="Snipaste_2025-11-19_20-25-49" style="zoom: 25%;" />
+
+### **DMA**
+
+在了解空闲中断加+DMA方式方式之前，我们有必要先知道一下什么是`DMA`
 
 `DMA`，全称`Direct Memory Access`，即直接存储器访问。
 
@@ -242,10 +284,16 @@ HAL_StatusTypeDef HAL_UART_Receive_IT(UART_HandleTypeDef *huart, uint8_t *pData,
 
 <img src="./pictures/0876bb704d24496f80f82bea49d08896.png" alt="0876bb704d24496f80f82bea49d08896" style="zoom:75%;" />
 
-如果没有不通过DMA，CPU传输数据还要以内核作为中转站，例如将ADC采集的数据转移到SRAM中。
+如果没有不通过DMA，CPU传输数据还要以内核作为中转站，例如将ADC采集的数据转移到目标位置中。
 
-而如果通过DMA的话，DMA控制器将获取到的外设数据存储到DMA通道中，然后通过DMA总线与DMA总线矩阵协调，将数据传输到SRAM中，期间不需内核参与。
+而如果通过DMA的话，DMA控制器将获取到的外设数据存储到DMA通道中，然后通过DMA总线与DMA总线矩阵协调，将数据传输到目标位置中，期间不需内核参与。
 
+<img src="./pictures/ae6630e5b5a0458b8f1094400934e3ba.png" alt="ae6630e5b5a0458b8f1094400934e3ba" style="zoom:55%;" />
+
+但是这张图不需要看懂，你只需要知道DMA可以不经过CPU直接传输数据就行。
+
+> （这些其实也不用看）
+>
 > 主要特征：
 >
 > 同一个DMA模块上，多个请求间的优先权可以通过软件编程设置（共有四级：很高、高、中等和低），优先权设置相等时由硬件决定（请求0优先于请求1，依此类推）；
@@ -253,17 +301,29 @@ HAL_StatusTypeDef HAL_UART_Receive_IT(UART_HandleTypeDef *huart, uint8_t *pData,
 > 可编程的数据传输数目：最大为65535；
 > 对于大容量的STM32芯片有2个DMA控制器 两个DMA控制器，DMA1有7个通道，DMA2有5个通道.
 
+#### 空闲中断加+DMA方式
 
+> 原理：为了避免上述两种情况给CPU带来的压力，利用DMA对数据进行处理。当寄存器接收到完整数据时候才会开启一次中断，然后进行DMA转运数据，DMA是独立于CPU外的直接存储器访问设备，可以减轻CPU压力。
 
+现在我们可以开始编写我们的DMA模式的串口代码了
 
+##### 发送数据
 
+```C
+HAL_StatusTypeDef HAL_UART_Transmit_DMA(UART_HandleTypeDef *huart, const uint8_t *pData, uint16_t Size);
+```
 
+##### 接收数据
 
+```C
+HAL_StatusTypeDef HAL_UARTEx_ReceiveToIdle_DMA(UART_HandleTypeDef *huart, uint8_t *pData, uint16_t Size)
+```
 
+接下来实现DMA接收数据
 
+首先依旧是cubemx的配置
 
-
-
+<img src="./pictures/Snipaste_2025-11-19_20-42-53.png" alt="Snipaste_2025-11-19_20-42-53" style="zoom: 50%;" />
 
 
 
