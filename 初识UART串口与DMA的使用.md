@@ -305,8 +305,6 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart,uint16_t Size){
 
 > 原理：为了避免上述两种情况给CPU带来的压力，利用DMA对数据进行处理。当寄存器接收到完整数据时候才会开启一次中断，然后进行DMA转运数据，DMA是独立于CPU外的直接存储器访问设备，可以减轻CPU压力。
 
-现在我们可以开始编写我们的DMA模式的串口代码了
-
 ##### 发送数据
 
 ```C
@@ -319,12 +317,117 @@ HAL_StatusTypeDef HAL_UART_Transmit_DMA(UART_HandleTypeDef *huart, const uint8_t
 HAL_StatusTypeDef HAL_UARTEx_ReceiveToIdle_DMA(UART_HandleTypeDef *huart, uint8_t *pData, uint16_t Size)
 ```
 
-接下来实现DMA接收数据
-
 首先依旧是cubemx的配置
 
 <img src="./pictures/Snipaste_2025-11-19_20-42-53.png" alt="Snipaste_2025-11-19_20-42-53" style="zoom: 50%;" />
 
+现在我们可以开始编写我们的DMA模式的串口代码了
+
+改DMA就更简单了，只要改改后缀就行
+
+首先定义接收数组和上面的定义一样
+
+然后修改开启
+
+```C
+  /* USER CODE BEGIN 2 */
+
+	HAL_UARTEx_ReceiveToIdle_DMA(&huart1, rxData, sizeof(rxData));
+	// 关闭DMA过半中断
+	__HAL_DMA_DISABLE_IT(&hdma_usart1_rx, DMA_IT_HT);
+	
+  /* USER CODE END 2 */
+```
+
+修改中断函数
+
+```C
+void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
+{
+	if(huart->Instance == USART1)
+	{
+		HAL_UART_Transmit(&huart1, rxData, sizeof(rxData),100);
+		HAL_UARTEx_ReceiveToIdle_DMA(&huart1,rxData, sizeof(rxData));
+		__HAL_DMA_DISABLE_IT(&hdma_usart1_rx, DMA_IT_HT);
+	}
+}
+```
+
+这个时候有个地方会报错，只要把操作句柄拿过来就行了
+
+```C
+/* USER CODE BEGIN PV */
+extern DMA_HandleTypeDef hdma_usart1_rx;
+/* USER CODE END PV */
+```
+
+最后看到的效果和上面是一样的。
+
+<img src="./pictures/Snipaste_2025-11-19_21-25-25.png" alt="Snipaste_2025-11-19_21-25-25" style="zoom:40%;" />
+
+大概到这里就结束了，希望大家认真预习捏(～￣▽￣)～
+
+附上一张他自己生成的思维导图，没什么用，水点字数
+
+![初识UART串口与DMA的使用_1763558817036](./pictures/初识UART串口与DMA的使用_1763558817036.svg)
+
+### 重定向
+
+在PC上进行C语言程序开发时，我们可以利用C语言的格式化输出函数 printf()将程序的运行结果发送到显示屏上显示，也可以利用格式化输人函数 scanf()读取由键盘输入的信息。在嵌入式系统的开发中，我们也希望能够将程序的运行结果或者调试信息发送到 PC 上显示，并读取由键盘输入的信息，实现良好的人机交互。
+
+HAL库提供的串口收发函数，功能比较简单，不能进行格式化的输入输出。如果要实现类似 C语言中的格式化输入输出函数，需要把printf()函数的输出和 scanf( )函数的输入重新定向到串口。
+
+具体的实现方法如下：用户编写与C 语言标准库函数中同名的函数，当链接器检查到用户编写了与标准库函数同名的函数时，将优先使用用户编写的函数，从而实现对标准库函数的间接修改(标准库函数中的同名函数采用了 weak 属性定义)。
+
+由于printf()函数通过调用fputc()函数来实现数据的输出，scanf()函数通过调用fgetc()函数来实现数据的输入，因此用户需要改写这两个函数来实现串口的重定向。
+
+在进行重定向之前，需要配置好串口，使用到串口的轮寻模式。
+
+> 注意：由于 printf()函数和scan()函数是由MDK 软件所提供的 C语言标准库函数，在完成程序编写后，用户还需要在MDK 软件的工程设置窗口中选择“Target”标签页勾选其中的“Use MicroLIB”选项。如果不勾选“Use MicroLIB”选项，则无法使用。
+
+<img src="./pictures/fc4108b953223bb0e5ace5c2a19064fe.png" alt="fc4108b953223bb0e5ace5c2a19064fe" style="zoom:67%;" />
+
+第一步：由于主程序中调用了printf()函数和scanf()函数，因此需要添加标准输入输出头文件：stdio.h。
+
+```c
+/* USER CODE BEGIN Includes*/
+
+#include <stdio.h>// 包含标准输入输出头文件
+
+/* USER CODE END Includes*/
+```
+
+第二步：重写fputc()函数
+
+```C
+
+int fputc(int ch,FILE *f)
+{
+	//采用轮询方式发送1字节数据，超时时间设置为无限等待
+	HAL_UART_Transmit(&huart1,(uint8_t *)&ch,1,HAL_MAX_DELAY);
+	return ch;
+}
+```
+
+注意：由于入口参数ch是整型变量，而函数HAL_UART_Transmit()的入口参数pdata是指向无符号字符型的指针，因此需要进行强制类型转换，将int转换为uint8_t*。
+
+HAL_MAX_DELAY意味着无限等待，可以修改，比如修改为1000。
+
+第三步：重写fgetc()函数
+
+```C
+int fgetc(FILE *f)
+{
+	uint8_t ch;
+	// 采用轮询方式接收 1字节数据，超时时间设置为无限等待
+	HAL_UART_Receive(&huart1,(uint8_t*)&ch,1, HAL_MAX_DELAY );
+	return ch;
+}
+```
+
+注意：调用scanf()函数读取串口数据时，需要以空格作为输入的结束。因此在串口调试助手中输入数据时，必须以空格作为结束，然后再点击发送按钮，否则无法正确接收数据。
+
+scanf()函数只能接收不带空格的字符串。如果用户需要接收一个带空格的字符串，需要先逐个字节的接收，在接收过程中通过不断判断是否接收到 ‘\r’和‘\n’两个字符，来确定字符串是否接收完成。此时，串口调试助手的发送区中应该在输入一个完整字符串后，再按下键盘的“ENTER”键作为结束
 
 
 
@@ -333,11 +436,6 @@ HAL_StatusTypeDef HAL_UARTEx_ReceiveToIdle_DMA(UART_HandleTypeDef *huart, uint8_
 
 
 
-**[UART通信协议及其工作原理（图文并茂+超详细）-CSDN博客](https://blog.csdn.net/weixin_39939185/article/details/134657483)
-
-
-
-**[通信方式的分类（串行通信和并行通信）-CSDN博客](https://blog.csdn.net/Rocher_22/article/details/116590629)
 
 
 
@@ -345,23 +443,22 @@ HAL_StatusTypeDef HAL_UARTEx_ReceiveToIdle_DMA(UART_HandleTypeDef *huart, uint8_
 
 
 
-**[【STM32】DMA超详细解析·入门级教程_dma教程-CSDN博客](https://blog.csdn.net/MANONGDKY/article/details/154383583?ops_request_misc=&request_id=&biz_id=102&utm_term=DMA入门&utm_medium=distribute.pc_search_result.none-task-blog-2~all~sobaiduweb~default-1-154383583.142^v102^pc_search_result_base2&spm=1018.2226.3001.4187)（这个里面对DMA讲的非常详细，一开始可能看不懂）
+参考文献：
 
+比较重要：
 
+[UART通信协议及其工作原理（图文并茂+超详细）-CSDN博客](https://blog.csdn.net/weixin_39939185/article/details/134657483)
 
+[通信方式的分类（串行通信和并行通信）-CSDN博客](https://blog.csdn.net/Rocher_22/article/details/116590629)
 
+[【STM32】DMA超详细解析·入门级教程_dma教程-CSDN博客](https://blog.csdn.net/MANONGDKY/article/details/154383583?ops_request_misc=&request_id=&biz_id=102&utm_term=DMA入门&utm_medium=distribute.pc_search_result.none-task-blog-2~all~sobaiduweb~default-1-154383583.142^v102^pc_search_result_base2&spm=1018.2226.3001.4187)（这个里面对DMA讲的非常详细，一开始可能看不懂）
 
-
-
-
+不是很重要（选看）：
 
 [基于STM32HAL库的三种串口接收方式_stm32 hal 串口接收-CSDN博客](https://blog.csdn.net/qq_44758496/article/details/132206223)
-
-[stm32 HAL库 UART 笔记_stm32 hal uart-CSDN博客](https://blog.csdn.net/best_xo/article/details/140328396)
 
 [STM32 HAL库 UART串口发送数据实验_stm32 hal 串口发送-CSDN博客](https://blog.csdn.net/ElePower9527/article/details/145631460)
 
 [【STM32】CUBEMX之串口：串口三种模式（轮询模式、中断模式、DMA模式）的配置与使用示例 + 串口重定向 + 使用HAL扩展函数实现不定长数据接收_cubemx配置串口-CSDN博客](https://blog.csdn.net/Rick0725/article/details/136576310)
 
 [【STM32HAL库】串口通信-UART_stm32 hal uart-CSDN博客](https://blog.csdn.net/2301_79330491/article/details/138000201)
-
